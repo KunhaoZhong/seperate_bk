@@ -1,10 +1,11 @@
 """ KZ todo:
+    Done:
     1. add the extra argument to functions, for example slow-collider template has alpha
 """
 import numpy as np
 import torch
 
-# kz note: seems VERY hard to learn to the the divergence near 0
+# kz note: seems VERY hard to learn due to the the divergence near 0
 def bk_function_local(k1, k2, k3):
     return (k1**2 / (k2 * k3) + k2**2 / (k1 * k3) + k3**2 / (k1 * k2))/3
 
@@ -24,16 +25,37 @@ def bk_function_slow_collider_minus_eq(k1, k2, k3, alpha=0.1):
 def bk_function_slow_collider_full(k1, k2, k3, alpha=0.1):
     return  bk_function_slow_collider_minus_eq(k1, k2, k3, alpha) + bk_function_equilateral(k1,k2,k3)
 
-def get_function(func_name):
-    function_map = {
-        'bk_loc': bk_function_local,
-        'bk_eq':bk_function_equilateral,
-        'bk_test1': bk_function_test_1,
-        'bk_sl_collider': bk_function_slow_collider_minus_eq,
-        'bk_sl_collider_full': bk_function_slow_collider_full
+# Dictionary containing function info: function object and default arguments
+FUNCTION_MAP = {
+    'bk_loc': {
+        'func': bk_function_local,
+        'default_args': {}
+    },
+    'bk_eq': {
+        'func': bk_function_equilateral,
+        'default_args': {}
+    },
+    'bk_test1': {
+        'func': bk_function_test_1,
+        'default_args': {}
+    },
+    'bk_sl_collider': {
+        'func': bk_function_slow_collider_minus_eq,
+        'default_args': {'alpha': 0.1}
+    },
+    'bk_sl_collider_full': {
+        'func': bk_function_slow_collider_full,
+        'default_args': {'alpha': 0.1}
+    },
+}
 
-    }
-    return function_map.get(func_name)
+def get_function(func_name):
+    """
+    Returns the function and its default arguments
+    """
+    if func_name not in FUNCTION_MAP:
+        raise ValueError(f"Unknown function: {func_name}")
+    return FUNCTION_MAP[func_name]
 
 def generate_scale_invariant_k_points(n_points_k1=300, kmin = 0.001, kmax=None, n_points_k2 = None):
     """
@@ -55,7 +77,6 @@ def generate_scale_invariant_k_points(n_points_k1=300, kmin = 0.001, kmax=None, 
 
     # Since k3=1, and k1 < k2 < 1, we can start small and work up
     for k1 in np.linspace(kmin, kmax, n_points_k1):
-        
         # avoid duplicated [1,1,1]
         if k1 ==kmax:
             points.append((k1, k2, 1.0))
@@ -67,12 +88,16 @@ def generate_scale_invariant_k_points(n_points_k1=300, kmin = 0.001, kmax=None, 
                 points.append((k1, k2, 1.0)) # k3=1.0 in this function, kmax is for k1/k3 and k2/k3
     return np.array(points)
 
-
-def create_bk_dataset(grid_points, func_name, kmin=0.01, kmax=1.0, n_points_k2=None, scale_invariant=True):
-    func = get_function(func_name)
+def create_bk_dataset(grid_points, func_name, func_arg, kmin=0.01, kmax=1.0, n_points_k2=None, scale_invariant=True):
+    func_info = get_function(func_name)
+    func = func_info['func']
+    func_args_input = func_info['default_args'].copy()
+    if func_arg is not None:
+            func_args_input.update(func_arg)
+    # print('kz testing', func_args_input)
     if scale_invariant:
         ks_scale_invariant = generate_scale_invariant_k_points(n_points_k1=grid_points, kmin=kmin, kmax=kmax, n_points_k2=n_points_k2)
     else:
         raise NotImplementedError
-    y = func(ks_scale_invariant[:, 0], ks_scale_invariant[:, 1], ks_scale_invariant[:, 2])
+    y = func(ks_scale_invariant[:, 0], ks_scale_invariant[:, 1], ks_scale_invariant[:, 2], **func_args_input)
     return torch.tensor(ks_scale_invariant, dtype=torch.float32), torch.tensor(y, dtype=torch.float32).view(-1, 1)

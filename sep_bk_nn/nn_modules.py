@@ -7,8 +7,10 @@ class MLP(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(input_dim, 128),
             nn.ReLU(),
+            # nn.GELU(),
             nn.Linear(128, 64),
             nn.ReLU(),
+            # nn.GELU(),
             nn.Linear(64, 1)
         )
     

@@ -57,7 +57,7 @@ def get_function(func_name):
         raise ValueError(f"Unknown function: {func_name}")
     return FUNCTION_MAP[func_name]
 
-def generate_scale_invariant_k_points(n_points_k1=300, kmin = 0.001, kmax=None, n_points_k2 = None):
+def generate_scale_invariant_k_points(n_points_k1=300, kmin = 0.001, kmax=None, n_points_k2 = None, k2_sample_version=0):
     """
     Generates k points where:
     1. k3 = 1 (fixed due to scale invariance)
@@ -70,25 +70,51 @@ def generate_scale_invariant_k_points(n_points_k1=300, kmin = 0.001, kmax=None, 
 
     """
     points = []
-    if n_points_k2 is None:
-        n_points_k2 = n_points_k1
-    if kmax is None:
-        kmax = 1.0
+    
+    
+    # fix the step size according to n_points_k1
+    if k2_sample_version==0:
+        if n_points_k2 is None:
+            n_points_k2 = n_points_k1
+        if kmax is None:
+            kmax = 1.0
 
-    # Since k3=1, and k1 < k2 < 1, we can start small and work up
-    for k1 in np.linspace(kmin, kmax, n_points_k1):
-        # avoid duplicated [1,1,1]
-        if k1 ==kmax:
-            points.append((k1, k2, 1.0))
-            continue
-        # k2 must be greater than k1 but less than 1
-        for k2 in np.linspace(k1, kmax, n_points_k2):
-            # Check triangle inequality: 1 < k1 + k2
-            if 1 < k1 + k2:
-                points.append((k1, k2, 1.0)) # k3=1.0 in this function, kmax is for k1/k3 and k2/k3
-    return np.array(points)
+        step_size = (kmax-kmin)/n_points_k1
+        # Since k3=1, and k1 < k2 < 1, we can start small and work up
+        for k1 in np.linspace(kmin, kmax, n_points_k1):
+            # avoid duplicated [1,1,1]
+            if k1 ==kmax:
+                points.append((k1, k2, 1.0))
+                continue
+            # k2 must be greater than k1 but less than 1
+            for k2 in np.arange(k1, kmax, step_size):
+                # Check triangle inequality: 1 < k1 + k2
+                if 1 < k1 + k2:
+                    points.append((k1, k2, 1.0)) # k3=1.0 in this function, kmax is for k1/k3 and k2/k3
+        return np.array(points)        
+    
+    
+    # k2 always have the same n-points
+    elif k2_sample_version==1:
+        if n_points_k2 is None:
+            n_points_k2 = n_points_k1
+        if kmax is None:
+            kmax = 1.0
 
-def create_bk_dataset(grid_points, func_name, func_arg, kmin=0.01, kmax=1.0, n_points_k2=None, scale_invariant=True):
+        # Since k3=1, and k1 < k2 < 1, we can start small and work up
+        for k1 in np.linspace(kmin, kmax, n_points_k1):
+            # avoid duplicated [1,1,1]
+            if k1 ==kmax:
+                points.append((k1, k2, 1.0))
+                continue
+            # k2 must be greater than k1 but less than 1
+            for k2 in np.linspace(k1, kmax, n_points_k2):
+                # Check triangle inequality: 1 < k1 + k2
+                if 1 < k1 + k2:
+                    points.append((k1, k2, 1.0)) # k3=1.0 in this function, kmax is for k1/k3 and k2/k3
+        return np.array(points)
+
+def create_bk_dataset(grid_points, func_name, func_arg, kmin=0.01, kmax=1.0, n_points_k2=None, scale_invariant=True, k2_sample_version=0):
     func_info = get_function(func_name)
     func = func_info['func']
     func_args_input = func_info['default_args'].copy()
@@ -96,7 +122,7 @@ def create_bk_dataset(grid_points, func_name, func_arg, kmin=0.01, kmax=1.0, n_p
             func_args_input.update(func_arg)
     # print('kz testing', func_args_input)
     if scale_invariant:
-        ks_scale_invariant = generate_scale_invariant_k_points(n_points_k1=grid_points, kmin=kmin, kmax=kmax, n_points_k2=n_points_k2)
+        ks_scale_invariant = generate_scale_invariant_k_points(n_points_k1=grid_points, kmin=kmin, kmax=kmax, n_points_k2=n_points_k2, k2_sample_version=k2_sample_version)
     else:
         raise NotImplementedError
     y = func(ks_scale_invariant[:, 0], ks_scale_invariant[:, 1], ks_scale_invariant[:, 2], **func_args_input)

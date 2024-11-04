@@ -1,0 +1,72 @@
+# Base configuration
+defaults: &defaults
+  device: 'cuda'
+  batch_size: 512
+  epochs: 50
+  model_dir: 'models'
+  results_dir: 'results'
+
+# Dataset configuration
+dataset: &dataset
+  func_name: 'bk_sl_collider'
+  func_arg:
+      alpha: 0.1
+  grid_points: 3000
+  kmin: 0.001
+  #KZ NOTE: for slow-collider we don't need expansion since it doesn't peak at k=1
+  kmax: 1.0 
+  scale_invariant: true
+  #KZ NOTE: for slow-collider we just need sample on the regular grid
+  k2_sample_version: 0
+  
+
+# Experiments
+experiments:
+  test_1:
+    <<: *defaults
+    description: "simplest model with 1 term"
+    model_params:
+      num_terms: 1
+      symm_kind: 2
+      sub_arch: 'MLP'
+    dataset_params_train:
+      <<: *dataset
+    dataset_params_vali:
+      <<: *dataset
+      grid_points: 1000
+    dataset_params_test:
+      <<: *dataset
+      grid_points: 300
+
+  test_2:
+    <<: *defaults
+    description: "Model with 2 terms"
+    model_params:
+      num_terms: 2
+      symm_kind: 2
+      sub_arch: 'MLP'
+    dataset_params_train:
+      <<: *dataset
+    dataset_params_vali:
+      <<: *dataset
+      grid_points: 1000
+    dataset_params_test:
+      <<: *dataset
+      grid_points: 300
+      
+  test_3:
+    <<: *defaults
+    description: "Model with 2 terms and more training "
+    model_params:
+      num_terms: 2
+      symm_kind: 2
+      sub_arch: 'MLP'
+    dataset_params_train:
+      <<: *dataset
+      grid_points: 5000  # Different grid size
+    dataset_params_vali:
+      <<: *dataset
+      grid_points: 1000
+    dataset_params_test:
+      <<: *dataset
+      grid_points: 300

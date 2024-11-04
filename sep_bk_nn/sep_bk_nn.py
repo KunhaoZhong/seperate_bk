@@ -24,10 +24,11 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from scipy import interpolate
 from scipy import integrate
+import os
 
-from nn_modules import SeparableApproximation
-from bk_functions import create_bk_dataset
-from utils import Delta_fNL_scale_w_interp
+from .nn_modules import SeparableApproximation
+from .bk_functions import create_bk_dataset
+from .bk_utils import Delta_fNL_scale_w_interp
 
 
 class SepBKNN:
@@ -39,12 +40,52 @@ class SepBKNN:
         self.optimizer = optim.AdamW(self.model.parameters(), lr=0.001, weight_decay=0.01)
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=10, factor=0.3)
         self.loss_func = loss_func
+        self.num_terms = num_terms
+        self.symm_kind = symm_kind
         if loss_func == 'mse':
             self.criterion = nn.MSELoss()
+            
+    def save_checkpoint(self, val_loss, epoch, checkpoint_dir='./models/checkpoint'):
+        """Save model checkpoint"""
+        if not os.path.exists(checkpoint_dir):
+            os.makedirs(checkpoint_dir)
+            
+        checkpoint = {
+            'epoch': epoch,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'scheduler_state_dict': self.scheduler.state_dict(),
+            'val_loss': val_loss,
+            # 'func_name': func_name,
+            # 'func_args': func_args,
+            'num_terms': self.num_terms,
+            'symm_kind': self.symm_kind
+        }
+        
+        checkpoint_path = os.path.join(checkpoint_dir, f'best_model.pth')
+        torch.save(checkpoint, checkpoint_path)
+        print(f'Model checkpoint saved: val_loss: {val_loss:.6f}')
+    
+    def load_checkpoint(self, checkpoint_dir='./models/checkpoint'):
+        """Load model checkpoint"""
+        checkpoint_path = os.path.join(checkpoint_dir, f'best_model.pth')
+        if os.path.exists(checkpoint_path):
+            checkpoint = torch.load(checkpoint_path)
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            return checkpoint['epoch'], checkpoint['val_loss']
+        return None, None
 
     def train(self, train_loader, val_loader, epochs=50):
         train_losses = []
         val_losses = []
+        
+        best_val_loss = float('inf')
+        
+        # Initialize early stopping
+        early_stopping = EarlyStopping(patience=5, min_delta=1e-6, verbose=True)
+        
         
         for epoch in range(epochs):
             self.model.train()
@@ -71,6 +112,22 @@ class SepBKNN:
             
             if epoch % 1 == 0:
                 print(f"Epoch {epoch}, Train Loss: {epoch_loss:.6f}, Val Loss: {val_loss:.6f}")
+                
+            # early stop after some epoch
+            if epoch >=20:
+                # Save checkpoint if best model
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    self.save_checkpoint(val_loss, epoch)
+
+                # Early stopping check
+                if early_stopping(val_loss):
+                    print(f"EARLY STOPPING TRIGGERED AT EPOCH {epoch+1}")
+                    break
+        
+        # Load best model
+        _, best_loss = self.load_checkpoint()
+        print(f"Training completed. Best validation loss: {best_loss:.6f}")
         
         return train_losses, val_losses
 
@@ -206,3 +263,39 @@ class SepBKNN:
         
         print(f"Model loaded from {filepath}")
         return instance
+    
+    
+class EarlyStopping:
+    def __init__(self, patience=7, min_delta=0, verbose=False):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.verbose = verbose
+        self.counter = 0
+        self.best_loss = None
+        self.early_stop = False
+        self.val_loss_min = float('inf')
+    
+    def __call__(self, val_loss):
+        if self.best_loss is None:
+            self.best_loss = val_loss
+            self.val_loss_min = val_loss
+            return False
+            
+        # Check if validation loss improved
+        if val_loss < self.best_loss - self.min_delta:
+            self.best_loss = val_loss
+            self.val_loss_min = val_loss
+            self.counter = 0
+            if self.verbose:
+                print(f'Validation loss decreased to {val_loss:.6f}')
+        else:
+            self.counter += 1
+            if self.verbose:
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+        
+        # Check if we need to stop
+        if self.counter >= self.patience:
+            self.early_stop = True
+            return True
+            
+        return False

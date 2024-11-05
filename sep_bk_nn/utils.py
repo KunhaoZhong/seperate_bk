@@ -50,3 +50,66 @@ class ConfigHandler:
             self.config['defaults']['results_dir'],
             f'results_{test_id}'
         )
+    
+    
+def parse_test_ids(test_ids):
+    """
+    Parse test IDs including ranges to return a list of integers
+    Examples:
+        ['1,2,3'] -> [1, 2, 3]
+        ['1-3'] -> [1, 2, 3]
+        ['1-3', '5', '7-9'] -> [1, 2, 3, 5, 7, 8, 9]
+    """
+    parsed_ids = set()
+    
+    # Join all arguments and split by comma
+    for part in ','.join(test_ids).split(','):
+        if '-' in part:
+            # Handle range (e.g., "1-3")
+            try:
+                start, end = map(int, part.split('-'))
+                parsed_ids.update(range(start, end + 1))
+            except ValueError:
+                continue
+        else:
+            # Handle single number
+            try:
+                parsed_ids.add(int(part))
+            except ValueError:
+                continue
+    
+    return sorted(list(parsed_ids))
+
+def print_block_separator(text, style='default'):
+    """Print a visually distinct block separator with text"""
+    terminal_width = 80  # You can also use shutil.get_terminal_size().columns
+    
+    styles = {
+        'default': {
+            'top': '╔' + '═' * (terminal_width-2) + '╗',
+            'middle': '║' + ' ' * (terminal_width-2) + '║',
+            'bottom': '╚' + '═' * (terminal_width-2) + '╝'
+        },
+        'simple': {
+            'top': '┌' + '─' * (terminal_width-2) + '┐',
+            'middle': '│' + ' ' * (terminal_width-2) + '│',
+            'bottom': '└' + '─' * (terminal_width-2) + '┘'
+        },
+        'hash': {
+            'top': '#' * terminal_width,
+            'middle': '#' + ' ' * (terminal_width-2) + '#',
+            'bottom': '#' * terminal_width
+        }
+    }
+    
+    style_chars = styles.get(style, styles['default'])
+    
+    # Center the text
+    text = f" {text} "  # Add spacing around text
+    text_line = '║' + text.center(terminal_width-2) + '║'
+    
+    print("\n")  # Add some spacing
+    print(style_chars['top'])
+    print(text_line)
+    print(style_chars['bottom'])
+    print("\n")  # Add some spacing

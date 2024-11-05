@@ -1,0 +1,52 @@
+{
+    "test_id": "test_2",
+    "description": "Model with 2 terms",
+    "timestamp": "2024-11-04T17:52:22.478831",
+    "test_mse": 2.8573271076280935e-05,
+    "config": {
+        "device": "cuda",
+        "batch_size": 512,
+        "epochs": 50,
+        "model_dir": "models/sl_collider",
+        "results_dir": "results/sl_collider",
+        "description": "Model with 2 terms",
+        "model_params": {
+            "num_terms": 2,
+            "symm_kind": 2,
+            "sub_arch": "MLP"
+        },
+        "dataset_params_train": {
+            "func_name": "bk_sl_collider",
+            "func_arg": {
+                "alpha": 0.1
+            },
+            "grid_points": 3000,
+            "kmin": 0.001,
+            "kmax": 1.0,
+            "scale_invariant": true,
+            "k2_sample_version": 0
+        },
+        "dataset_params_vali": {
+            "func_name": "bk_sl_collider",
+            "func_arg": {
+                "alpha": 0.1
+            },
+            "grid_points": 1000,
+            "kmin": 0.0015,
+            "kmax": 1.0,
+            "scale_invariant": true,
+            "k2_sample_version": 0
+        },
+        "dataset_params_test": {
+            "func_name": "bk_sl_collider",
+            "func_arg": {
+                "alpha": 0.1
+            },
+            "grid_points": 1000,
+            "kmin": 0.0013,
+            "kmax": 1.0,
+            "scale_invariant": true,
+            "k2_sample_version": 0
+        }
+    }
+}

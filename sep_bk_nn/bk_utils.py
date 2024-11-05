@@ -106,3 +106,59 @@ def Delta_fNL_scale_w_interp(k_vals, bk_result_1, bk_result_2, kmin, scale_invar
     print('The bias estimation of fNL is Delta_fNL = ', Delta_fNL)
 
     return Delta_fNL
+
+
+def plot_3d_data(xy_vals, bk, method='scatter', title='3D Plot'):
+    """
+    Plot 3D data with color mapping
+    
+    Args:
+        k_vals: array of shape (N, 2) containing x and y coordinates
+        bk: array of shape (N,) containing z values
+        method: 'scatter' or 'surface'
+        title: plot title
+    """
+    fig = plt.figure(figsize=(10, 8))
+    ax = plt.axes(projection='3d')
+    
+    # Set viewing angle
+    ax.azim = -75
+    ax.dist = 10
+    ax.elev = 30
+    
+    x = xy_vals[:, 0]
+    y = xy_vals[:, 1]
+    z = bk.flatten()
+    
+    if method == 'scatter':
+        # Create scatter plot with color mapping
+        scatter = ax.scatter3D(x, y, z, 
+                             c=z,  # Color by z value
+                             cmap='viridis',  # Choose colormap
+                             s=30,  # Marker size
+                             alpha=0.6)  # Transparency
+        
+        # Add colorbar
+        fig.colorbar(scatter, ax=ax, label='Z Value')
+        
+    elif method == 'surface':
+        # Create triangulation surface plot
+        surf = ax.plot_trisurf(x, y, z,
+                             cmap='viridis',
+                             alpha=0.8)
+        
+        # Add colorbar
+        fig.colorbar(surf, ax=ax, label='Z Value')
+    
+    # Labels and title
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title(title)
+    
+    # Set axis limits if needed
+    # ax.set_xlim([x.min(), x.max()])
+    # ax.set_ylim([y.min(), y.max()])
+    # ax.set_zlim([z.min(), z.max()])
+    
+    plt.show()

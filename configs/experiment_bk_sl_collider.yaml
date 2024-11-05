@@ -3,8 +3,8 @@ defaults: &defaults
   device: 'cuda'
   batch_size: 512
   epochs: 50
-  model_dir: 'models'
-  results_dir: 'results'
+  model_dir: 'models/sl_collider'
+  results_dir: 'results/sl_collider'
 
 # Dataset configuration
 dataset: &dataset
@@ -34,9 +34,11 @@ experiments:
     dataset_params_vali:
       <<: *dataset
       grid_points: 1000
+      kmin: 0.0015
     dataset_params_test:
       <<: *dataset
-      grid_points: 300
+      grid_points: 1000
+      kmin: 0.0013
 
   test_2:
     <<: *defaults
@@ -50,9 +52,11 @@ experiments:
     dataset_params_vali:
       <<: *dataset
       grid_points: 1000
+      kmin: 0.0015
     dataset_params_test:
       <<: *dataset
-      grid_points: 300
+      grid_points: 1000
+      kmin: 0.0013
       
   test_3:
     <<: *defaults
@@ -67,6 +71,8 @@ experiments:
     dataset_params_vali:
       <<: *dataset
       grid_points: 1000
+      kmin: 0.0015
     dataset_params_test:
       <<: *dataset
-      grid_points: 300
+      grid_points: 1000
+      kmin: 0.0013

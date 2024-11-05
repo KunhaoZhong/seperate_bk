@@ -29,6 +29,7 @@ import os
 from .nn_modules import SeparableApproximation
 from .bk_functions import create_bk_dataset
 from .bk_utils import Delta_fNL_scale_w_interp
+from .bk_utils import plot_3d_data
 
 
 class SepBKNN:
@@ -77,7 +78,7 @@ class SepBKNN:
             return checkpoint['epoch'], checkpoint['val_loss']
         return None, None
 
-    def train(self, train_loader, val_loader, epochs=50):
+    def train(self, train_loader, val_loader, epochs, checkpoint_dir):
         train_losses = []
         val_losses = []
         
@@ -110,15 +111,15 @@ class SepBKNN:
 
             self.scheduler.step(val_loss)
             
-            if epoch % 1 == 0:
+            if epoch % 20 == 0:
                 print(f"Epoch {epoch}, Train Loss: {epoch_loss:.6f}, Val Loss: {val_loss:.6f}")
                 
             # early stop after some epoch
-            if epoch >=20:
+            if epoch >=0:
                 # Save checkpoint if best model
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
-                    self.save_checkpoint(val_loss, epoch)
+                    self.save_checkpoint(val_loss, epoch, checkpoint_dir)
 
                 # Early stopping check
                 if early_stopping(val_loss):
@@ -126,7 +127,7 @@ class SepBKNN:
                     break
         
         # Load best model
-        _, best_loss = self.load_checkpoint()
+        _, best_loss = self.load_checkpoint(checkpoint_dir)
         print(f"Training completed. Best validation loss: {best_loss:.6f}")
         
         return train_losses, val_losses
@@ -146,7 +147,7 @@ class SepBKNN:
         print(f"Test Mean Squared Error: {mse:.6f}")
         return mse
 
-    def plot_results_training(self, data_loader, train_losses, val_losses, TEST_ID):
+    def plot_results_training(self, path_plot_save, data_loader, train_losses, val_losses, TEST_ID):
         all_y = []
         all_y_pred = []
         self.model.eval()
@@ -183,7 +184,7 @@ class SepBKNN:
         plt.legend()
 
         plt.tight_layout()
-        plt.savefig('restuls_test_{}.pdf'.format(TEST_ID))
+        plt.savefig(path_plot_save+'/restuls_test_{}.pdf'.format(TEST_ID))
         plt.show()
 
 

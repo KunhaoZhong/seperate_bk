@@ -138,8 +138,6 @@ def main():
         print("\nSummary of all experiments:")
         for test_id, results in all_results.items():
             print(f"{test_id}: MSE = {results['test_mse']}")
-            
-            
 
 if __name__ == "__main__":
     warnings.filterwarnings('ignore')

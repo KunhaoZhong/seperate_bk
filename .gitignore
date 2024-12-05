@@ -1,7 +1,8 @@
-__pycache__/
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
 models/*.pth
 !models/.gitkeep
-
+**/__pycache__/
+*.pyc
+*/*.pyc
 

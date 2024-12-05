@@ -102,8 +102,9 @@ def Delta_fNL_scale_w_interp(k_vals, bk_result_1, bk_result_2, kmin, scale_invar
     # KZ TESTING END
     
     Delta_fNL = IP_1_2 / IP_1_1
+    print('Calculating the inner product with interpolation')
     print('true <B|B> is', IP_1_1)
-    print('The bias estimation of fNL is Delta_fNL = ', Delta_fNL)
+    print('The bias estimation of fNL is approximately Delta_fNL = ', np.sqrt(Delta_fNL))
 
     return Delta_fNL
 

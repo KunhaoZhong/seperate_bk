@@ -16,8 +16,8 @@ dataset: &dataset
   #KZ NOTE: for slow-collider we don't need expansion since it doesn't peak at k=1
   kmax: 1.0 
   scale_invariant: true
-  #KZ NOTE: for slow-collider we just need sample on the regular grid
-  k2_sample_version: 0
+  #KZ NOTE: version 2 should be more uniform around k2=1
+  k2_sample_version: 2
   
 
 # Experiments

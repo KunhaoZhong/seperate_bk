@@ -1,8 +1,8 @@
 {
     "test_id": "test_2",
     "description": "Model with 2 terms",
-    "timestamp": "2024-11-04T17:52:22.478831",
-    "test_mse": 2.8573271076280935e-05,
+    "timestamp": "2024-11-25T11:08:57.176478",
+    "test_mse": 2.296829033252019e-05,
     "config": {
         "device": "cuda",
         "batch_size": 512,
@@ -24,7 +24,7 @@
             "kmin": 0.001,
             "kmax": 1.0,
             "scale_invariant": true,
-            "k2_sample_version": 0
+            "k2_sample_version": 2
         },
         "dataset_params_vali": {
             "func_name": "bk_sl_collider",
@@ -35,7 +35,7 @@
             "kmin": 0.0015,
             "kmax": 1.0,
             "scale_invariant": true,
-            "k2_sample_version": 0
+            "k2_sample_version": 2
         },
         "dataset_params_test": {
             "func_name": "bk_sl_collider",
@@ -46,7 +46,7 @@
             "kmin": 0.0013,
             "kmax": 1.0,
             "scale_invariant": true,
-            "k2_sample_version": 0
+            "k2_sample_version": 2
         }
     }
 }

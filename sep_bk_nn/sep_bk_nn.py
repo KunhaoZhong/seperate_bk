@@ -188,7 +188,7 @@ class SepBKNN:
         plt.show()
 
 
-    def get_Delta_fNL(self, data_loader, kmin):
+    def get_Delta_fNL(self, data_loader, kmin, method='interpolation'):
         """
         This method for now only serve scale-invariant, ns=1 case
 
@@ -210,8 +210,15 @@ class SepBKNN:
         bk_true = np.concatenate(bk_true, axis=0)  
         k_vals = np.concatenate(k_vals, axis=0)  
 
-        Delta_fNL = Delta_fNL_scale_w_interp(k_vals, bk_predicted, bk_true, kmin, scale_invariant=True)
-
+        if method=='interpolation':
+            Delta_fNL = Delta_fNL_scale_w_interp(k_vals, bk_predicted, bk_true, kmin, scale_invariant=True)
+        elif method=='direct_sum':
+            print('Please ensure the k samples are uniform in order to use direct sum')
+            inner_product = np.sum((bk_predicted-bk_true)*(bk_predicted-bk_true)) / np.sum(bk_true*bk_true)
+            Delta_fNL = np.sqrt(inner_product)
+            print('The bias estimation of fNL is approximately Delta_fNL =  ', Delta_fNL)
+        else:
+            raise NotImplementedError('To get Delta-fNL, choose either interpolation or direct_sum method')
         return Delta_fNL
         
         

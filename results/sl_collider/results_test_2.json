@@ -1,8 +1,8 @@
 {
     "test_id": "test_2",
     "description": "Model with 2 terms",
-    "timestamp": "2024-11-25T11:08:57.176478",
-    "test_mse": 2.296829033252019e-05,
+    "timestamp": "2025-04-29T12:30:02.765290",
+    "test_mse": 5.726335401622675e-06,
     "config": {
         "device": "cuda",
         "batch_size": 512,

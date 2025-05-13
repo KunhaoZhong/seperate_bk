@@ -1,0 +1,27 @@
+{
+    "test_id": "test_1",
+    "description": "linear model with 1 term + cyclic symmetry",
+    "timestamp": "2025-05-02T11:17:15.986410",
+    "test_loss": 0.019417082260513342,
+    "cosine": 0.99382539099717,
+    "config": {
+        "device": "cpu",
+        "epochs": 100,
+        "batch_size": 512,
+        "patience": 5,
+        "model_dir": "models/oliver",
+        "results_dir": "results/oliver",
+        "description": "linear model with 1 term + cyclic symmetry",
+        "model_params": {
+            "num_terms": 1,
+            "symm_kind": 2,
+            "log_transform": false,
+            "sub_arch": "MLP",
+            "loss_func": "inner"
+        },
+        "dataset_params": {
+            "external_data": true,
+            "datafile": "test.txt"
+        }
+    }
+}

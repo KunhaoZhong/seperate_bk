@@ -1,0 +1,141 @@
+# Base configuration
+defaults: &defaults
+  # backend: cpu or cuda ( = gpu)
+  device: 'cpu'
+  # number of training epochs
+  epochs: 100
+  # batch size for inference
+  batch_size: 512
+  # stop after "patience" epochs without improvement
+  patience: 10
+  # directories for output
+  model_dir: 'models/oliver'
+  results_dir: 'results/oliver'
+
+# Dataset configuration
+dataset: &dataset
+  # Whether to read external dataset or generate new data
+  external_data: true
+  
+  ## Arguments for external_data (not used if external_data = false)
+  datafile: 'test.txt'
+  
+  # ## Arguments for internal_data (not used if external_data = true)
+  # # input shape and arguments (comment out the arg if we don't need it, but keep the func_arg line!)
+  # func_name: 'bk_eq'
+  # func_arg:
+  # #  alpha: 0.1
+  # # k-space grid
+  # scale_invariant: true
+  # kmin: 0.001
+  # kmax: 1.0
+  # # number of points for each of k1, k2, k3. Total size ~ 1/8 * n_points_k^3
+  # n_points_k: 200
+  
+# Model configuration
+model: &model
+  # number of terms in separable representation
+  num_terms: 3
+  # type of symmetry
+  # 1: f(k1)g(k2)h(k3) + 5 perm.
+  # 2: f(k1)g(k2)g(k3) + 2 cyc.
+  # 3: f(k1)g(k2)h(k3) + 2 cyc.
+  symm_kind: 1
+  # apply log transform to inputs, i.e. use exp(f(log(x))) instead of f(x)
+  log_transform: true
+  # architecture for f, g, h
+  sub_arch: 'MLP'
+  # type of loss: inner or mse. 
+  # inner approximates the true inner product between shapes
+  # mse is the standard least squares loss
+  loss_func: 'inner'
+
+# List of experiments (will be run in serial)
+experiments:
+  # test_1:
+  #   <<: *defaults
+  #   description: "linear model with 1 term + cyclic symmetry"
+  #   model_params:
+  #     <<: *model
+  #     num_terms: 1
+  #     symm_kind: 2
+  #     log_transform: false
+  #   dataset_params:
+  #      <<: *dataset
+
+  # test_2:
+  #   <<: *defaults
+  #   description: "log model with 1 term + cyclic symmetry"
+  #   model_params:
+  #     <<: *model
+  #     num_terms: 1
+  #     symm_kind: 2
+  #     log_transform: true
+  #   dataset_params:
+  #      <<: *dataset
+
+  # test_3:
+  #   <<: *defaults
+  #   description: "linear model with 1 term + perm symmetry"
+  #   model_params:
+  #     <<: *model
+  #     num_terms: 1
+  #     symm_kind: 1
+  #     log_transform: false
+  #   dataset_params:
+  #      <<: *dataset
+
+  # test_4:
+  #   <<: *defaults
+  #   description: "log model with 1 term + perm symmetry"
+  #   model_params:
+  #     <<: *model
+  #     num_terms: 1
+  #     symm_kind: 1
+  #     log_transform: true
+  #   dataset_params:
+  #      <<: *dataset
+
+  # test_5:
+  #   <<: *defaults
+  #   description: "linear model with 2 terms + perm symmetry"
+  #   model_params:
+  #     <<: *model
+  #     num_terms: 2
+  #     symm_kind: 1
+  #     log_transform: false
+  #   dataset_params:
+  #      <<: *dataset
+
+  # test_6:
+  #   <<: *defaults
+  #   description: "log model with 2 terms + perm symmetry"
+  #   model_params:
+  #     <<: *model
+  #     num_terms: 2
+  #     symm_kind: 1
+  #     log_transform: true
+  #   dataset_params:
+  #      <<: *dataset
+
+  # test_7:
+  #   <<: *defaults
+  #   description: "linear model with 3 terms + perm symmetry"
+  #   model_params:
+  #     <<: *model
+  #     num_terms: 3
+  #     symm_kind: 1
+  #     log_transform: false
+  #   dataset_params:
+  #      <<: *dataset
+
+  test_8:
+    <<: *defaults
+    description: "log model with 3 terms + perm symmetry"
+    model_params:
+      <<: *model
+      num_terms: 5
+      symm_kind: 1
+      log_transform: true
+    dataset_params:
+       <<: *dataset

@@ -2,7 +2,7 @@
 defaults: &defaults
   device: 'cuda'
   batch_size: 512
-  epochs: 50
+  epochs: 1
   model_dir: 'models/sl_collider'
   results_dir: 'results/sl_collider'
 
@@ -11,7 +11,8 @@ dataset: &dataset
   func_name: 'bk_sl_collider'
   func_arg:
       alpha: 0.1
-  grid_points: 3000
+  n_points_k1: 1000
+  #3000
   kmin: 0.001
   #KZ NOTE: for slow-collider we don't need expansion since it doesn't peak at k=1
   kmax: 1.0 
@@ -33,11 +34,11 @@ experiments:
       <<: *dataset
     dataset_params_vali:
       <<: *dataset
-      grid_points: 1000
+      n_points_k1: 1000
       kmin: 0.0015
     dataset_params_test:
       <<: *dataset
-      grid_points: 1000
+      n_points_k1: 1000
       kmin: 0.0013
 
   test_2:
@@ -51,11 +52,11 @@ experiments:
       <<: *dataset
     dataset_params_vali:
       <<: *dataset
-      grid_points: 1000
+      n_points_k1: 1000
       kmin: 0.0015
     dataset_params_test:
       <<: *dataset
-      grid_points: 1000
+      n_points_k1: 1000
       kmin: 0.0013
       
   test_3:

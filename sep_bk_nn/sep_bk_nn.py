@@ -27,16 +27,15 @@ from scipy import integrate
 import os
 
 from .nn_modules import SeparableApproximation
-from .bk_functions import create_bk_dataset
 from .bk_utils import Delta_fNL_scale_w_interp
 from .bk_utils import plot_3d_data
 
 
 class SepBKNN:
-    def __init__(self, num_terms, symm_kind, loss_func = 'mse', sub_arch='MLP', device=None):
+    def __init__(self, num_terms, symm_kind, loss_func = 'mse', sub_arch='MLP', log_transform=False, device=None):
 
         self.device = device
-        self.model = SeparableApproximation(num_terms=num_terms, symm_kind=symm_kind, sub_arch=sub_arch).to(self.device)
+        self.model = SeparableApproximation(num_terms=num_terms, symm_kind=symm_kind, sub_arch=sub_arch, log_transform=log_transform).to(self.device)
         # print(self.model)
         self.optimizer = optim.AdamW(self.model.parameters(), lr=0.001, weight_decay=0.01)
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=10, factor=0.3)
@@ -78,17 +77,32 @@ class SepBKNN:
             return checkpoint['epoch'], checkpoint['val_loss']
         return None, None
 
-    def train(self, train_loader, val_loader, epochs, checkpoint_dir):
+    def inner_product_loss(self, X, predicted_y, true_y):
+        """Compute the inner-product loss"""
+        k_weight = X[:,0]*X[:,1]*X[:,2]/(X[:,0]+X[:,1]+X[:,2])
+        k_weight *= 0.5*(1-torch.tanh(10*torch.log10(X[:,0]/0.13)))
+        k_weight *= 0.5*(1-torch.tanh(10*torch.log10(X[:,0]/0.13)))
+        k_weight *= 0.5*(1-torch.tanh(10*torch.log10(X[:,0]/0.13)))
+        return torch.sum(k_weight*(predicted_y - true_y)**2)/len(predicted_y)
+        
+    def train(self, train_loader, val_loader, epochs, checkpoint_dir, patience=5):
         train_losses = []
         val_losses = []
         
         best_val_loss = float('inf')
         
         # Initialize early stopping
-        early_stopping = EarlyStopping(patience=5, min_delta=1e-6, verbose=True)
+        early_stopping = EarlyStopping(patience=patience, min_delta=1e-6, verbose=True)
         
-        
+        if self.loss_func == 'inner':
+            print("Defining normalization")
+            loss_norm = 0
+            for batch_X, batch_y in tqdm(train_loader):
+                loss_norm += self.inner_product_loss(batch_X, batch_y, 0*batch_y)*len(batch_y)
+            self.loss_norm = loss_norm/len(train_loader.dataset)
+            
         for epoch in range(epochs):
+            print("Starting epoch %d"%epoch)
             self.model.train()
             epoch_loss = 0
             for batch_X, batch_y in tqdm(train_loader):
@@ -97,11 +111,15 @@ class SepBKNN:
                 outputs = self.model(batch_X)
                 if self.loss_func == 'mse':
                     loss = self.criterion(outputs, batch_y)
+                elif self.loss_func == 'inner':
+                    loss = self.inner_product_loss(batch_X, outputs, batch_y)* batch_y.size(0)*len(train_loader)/len(train_loader.dataset)/self.loss_norm
                 else:
                     raise TypeError('Loss function not defined')
                 loss.backward()
                 self.optimizer.step()
                 epoch_loss += loss.item()
+                if np.isnan(epoch_loss):
+                    raise Exception("Loss is nan!")
             
             epoch_loss /= len(train_loader)
             train_losses.append(epoch_loss)
@@ -111,7 +129,7 @@ class SepBKNN:
 
             self.scheduler.step(val_loss)
             
-            if epoch % 20 == 0:
+            if epoch % 1 == 0:
                 print(f"Epoch {epoch}, Train Loss: {epoch_loss:.6f}, Val Loss: {val_loss:.6f}")
                 
             # early stop after some epoch
@@ -139,13 +157,19 @@ class SepBKNN:
             for batch_X, batch_y in data_loader:
                 batch_X, batch_y = batch_X.to(self.device), batch_y.to(self.device)
                 outputs = self.model(batch_X)
-                total_loss += self.criterion(outputs, batch_y).item() * batch_y.size(0)
+                if self.loss_func == 'mse':
+                    loss = self.criterion(outputs, batch_y)
+                elif self.loss_func == 'inner':
+                    loss = self.inner_product_loss(batch_X, outputs, batch_y)/self.loss_norm
+                else:
+                    raise TypeError('Loss function not defined')
+                total_loss += loss.item() * batch_y.size(0)
         return total_loss / len(data_loader.dataset)
 
-    def test_mse(self, test_loader):
-        mse = self.evaluate(test_loader)
-        print(f"Test Mean Squared Error: {mse:.6f}")
-        return mse
+    def test_loss(self, test_loader):
+        loss = self.evaluate(test_loader)
+        print(f"Test Error: {loss:.6f}")
+        return loss
 
     def plot_results_training(self, path_plot_save, data_loader, train_losses, val_losses, TEST_ID):
         all_y = []
@@ -187,6 +211,49 @@ class SepBKNN:
         plt.savefig(path_plot_save+'/restuls_test_{}.pdf'.format(TEST_ID))
         plt.show()
 
+    def get_cosine(self, data_loader, kmin=0.001, kmax=1.0):
+        """
+        This computes the cosine between the approximated template and the truth.
+        """
+        print("Computing cosine...")
+        self.model.eval()
+        
+        # Define an integration grid
+        xmin = kmin/kmax
+        _x = np.linspace(xmin,1,100)
+        _y = np.linspace(xmin,1,100)
+        _k = np.geomspace(kmin,kmax,25)
+        xx, yy, kk = np.meshgrid(_x, _y, _k)
+        filt = (np.abs(xx-yy)<=1)*(1<=xx+yy)*(xx<=yy)
+        filt *= (kk*xx >= kmin)*(kk*yy >= kmin)
+        x, y, k = np.min([xx[filt], yy[filt]], 0), np.max([xx[filt], yy[filt]], 0), kk[filt]
+        
+        # Load true and theory predictions on the test set
+        bk_predicted = []
+        bk_true = []
+        k_vals  = []
+        with torch.no_grad():
+            for batch_X, batch_y in data_loader:
+                batch_X, batch_y = batch_X.to(self.device), batch_y.to(self.device)
+                outputs = self.model(batch_X)
+                bk_predicted.append(outputs.cpu().detach().numpy().tolist())
+                bk_true.append(batch_y.cpu().detach().numpy().tolist())
+                k_vals.append(batch_X.cpu().detach().numpy().tolist())
+        k_vals = np.concatenate(k_vals)
+        bk_predicted = np.concatenate(bk_predicted)
+        bk_true = np.concatenate(bk_true)
+        
+        # Compute theory on the interpolation grid (only in domain of interest)
+        interp_pred, interp_true = np.zeros_like(xx), np.zeros_like(xx)
+        interp_pred[filt] = interpolate.LinearNDInterpolator(k_vals[:,:3],bk_predicted.ravel(), 0.)(k*x, k*y, k)
+        interp_true[filt] = interpolate.LinearNDInterpolator(k_vals[:,:3],bk_true.ravel(), 0.)(k*x, k*y, k)
+        
+        def inner(iint1, iint2):
+            return integrate.simpson(_k**2*integrate.simpson(integrate.simpson(iint1*iint2, x=_x, axis=0), x=_y, axis=0), x=_k)
+        inner_pp = inner(interp_pred, interp_pred)
+        inner_pt = inner(interp_pred, interp_true)
+        inner_tt = inner(interp_true, interp_true)
+        return inner_pt/np.sqrt(inner_tt*inner_pp)
 
     def get_Delta_fNL(self, data_loader, kmin, method='interpolation'):
         """

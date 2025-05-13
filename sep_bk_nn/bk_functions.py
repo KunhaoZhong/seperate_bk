@@ -9,6 +9,7 @@ import warnings
 
 # kz note: seems VERY hard to learn due to the the divergence near 0
 def bk_function_local(k1, k2, k3):
+    
     return (k1**2 / (k2 * k3) + k2**2 / (k1 * k3) + k3**2 / (k1 * k2))/3
 
 def bk_function_equilateral(k1, k2, k3):
@@ -59,7 +60,7 @@ def get_function(func_name):
         raise ValueError(f"Unknown function: {func_name}")
     return FUNCTION_MAP[func_name]
 
-def generate_scale_invariant_k_points(n_points_k1=300, kmin = 0.001, kmax=None, n_points_k2 = None, k2_sample_version=2):
+def generate_scale_invariant_k_points(n_points_k1=300, xmin=0.001, kmin = 0.001, kmax=1, n_points_k2 = None, k2_sample_version=2):
     """
     Generates k points where:
     1. k3 = 1 (fixed due to scale invariance)
@@ -72,7 +73,7 @@ def generate_scale_invariant_k_points(n_points_k1=300, kmin = 0.001, kmax=None, 
 
     """
     points = []
-        
+       
     # fix the step size according to n_points_k1
     if k2_sample_version==0:
         warnings.warn("This k points sampling would not cover the boundary very well, consider switch to version 2")
@@ -102,9 +103,7 @@ def generate_scale_invariant_k_points(n_points_k1=300, kmin = 0.001, kmax=None, 
     elif k2_sample_version==1:
         if n_points_k2 is None:
             n_points_k2 = n_points_k1
-        if kmax is None:
-            kmax = 1.0
-
+        
         # Since k3=kmax, and k1 < k2 < kmax, we can start small and work up
         for k1 in np.linspace(kmin, kmax, n_points_k1):
             # avoid duplicated [1,1,1]
@@ -134,8 +133,6 @@ def generate_scale_invariant_k_points(n_points_k1=300, kmin = 0.001, kmax=None, 
     elif k2_sample_version=='full_uniform':
         if n_points_k2 is None:
             n_points_k2 = n_points_k1
-        if kmax is None:
-            kmax = 1.0
             
         n_points_k2 = n_points_k2//2
         n_points_k1 = n_points_k1//2
@@ -171,15 +168,50 @@ def generate_scale_invariant_k_points(n_points_k1=300, kmin = 0.001, kmax=None, 
     else:
         raise NotImplementedError('k points sampleing method not defined')
 
-def create_bk_dataset(grid_points, func_name, func_arg, kmin=0.01, kmax=1.0, n_points_k2=None, scale_invariant=True, k2_sample_version=2):
+def generate_points(n_points_k = 100, kmin=0.001, kmax=1.):
+    """Generate a grid of k1, k2, k3 satisfying k1 <= k2 <= k3, |k1-k2|<=k3<=k1+k2."""
+    assert kmin>0
+    
+    # Define k array
+    k_arr = np.geomspace(kmin, kmax, n_points_k)
+    points = []
+    for k1 in k_arr:
+        for k2 in k_arr:
+            for k3 in k_arr:
+                if np.abs(k1-k2)<=k3 and k3<=k1+k2 and k1<=k2 and k2<=k3:
+                    points.append([k1,k2,k3])
+    points = np.asarray(points)
+    return points
+    
+def create_bk_dataset_new(n_points_k, func_name, func_arg, kmin=0.001, kmax=1.0, scale_invariant=True):
+    """Create a bispectrum dataset. We define a grid in k1, k2, k3 and evaluate the theory on it."""
+    
+    # Get input function
     func_info = get_function(func_name)
     func = func_info['func']
     func_args_input = func_info['default_args'].copy()
     if func_arg is not None:
-            func_args_input.update(func_arg)
+        func_args_input.update(func_arg)
+    
+    # Get k array
+    ks = generate_points(n_points_k, kmin=kmin, kmax=kmax)
+    
+    # Compute Bk array
+    if scale_invariant:
+        y = func(ks[:, 0]/ks[:, 2], ks[:, 1]/ks[:, 2], ks[:, 2]/ks[:, 2], **func_args_input)        
+    else:
+        raise NotImplementedError()
+    return torch.tensor(ks, dtype=torch.float32), torch.tensor(y, dtype=torch.float32).view(-1, 1)
+    
+def create_bk_dataset(n_points_k1, func_name, func_arg, xmin=0.01, kmin=None, kmax=None, n_points_k2=None, scale_invariant=True, k2_sample_version=2, scaling=None):
+    func_info = get_function(func_name)
+    func = func_info['func']
+    func_args_input = func_info['default_args'].copy()
+    if func_arg is not None:
+        func_args_input.update(func_arg)
     # print('kz testing', func_args_input)
     if scale_invariant:
-        ks_scale_invariant = generate_scale_invariant_k_points(n_points_k1=grid_points, kmin=kmin, kmax=kmax, n_points_k2=n_points_k2, k2_sample_version=k2_sample_version)
+        ks_scale_invariant = generate_scale_invariant_k_points(n_points_k1=n_points_k1, xmin=xmin, n_points_k2=n_points_k2, k2_sample_version=k2_sample_version)
     else:
         raise NotImplementedError
     y = func(ks_scale_invariant[:, 0], ks_scale_invariant[:, 1], ks_scale_invariant[:, 2], **func_args_input)

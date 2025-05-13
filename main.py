@@ -1,6 +1,3 @@
-""" KZ todo:
-    1. organize the variables such as grid_points, funcs, to a config/yaml?
-"""
 import numpy as np
 import os
 import argparse
@@ -24,8 +21,8 @@ def run_experiment(config, test_id):
     FUN_ARG = config['dataset_params_train']['func_arg']
     NUM_TERMS = config['model_params']['num_terms']
     SYMM_KIND = config['model_params']['symm_kind']
-    # Create datasets
     
+    # Create datasets
     X_train, y_train = create_bk_dataset(**config['dataset_params_train']) 
     X_val,  y_val  = create_bk_dataset(**config['dataset_params_vali'])
     X_test, y_test = create_bk_dataset(**config['dataset_params_test'])
@@ -57,14 +54,20 @@ def run_experiment(config, test_id):
     train_losses, val_losses = sep_bk_nn.train(train_loader, val_loader, epochs=config['epochs'], checkpoint_dir=intermediate_save_path) # config['epochs']
 
     # Test the model
-    test_mse = sep_bk_nn.test_mse(test_loader)
+    test_loss = sep_bk_nn.test_loss(test_loader)
 
+    # Calculate cosine with results
+    cosine = sep_bk_nn.get_cosine(test_loader, xmin = config['dataset_params_test']['kmin'], scale_invariant=config['dataset_params_test']['scale_invariant'])
+    print('estimated cosine is {} '.format(cosine))
+    import sys
+    sys.exit()
+    
     # Save results
     results = {
         'test_id': test_id,
         'description': config.get('description', ''),
         'timestamp': datetime.datetime.now().isoformat(),
-        'test_mse': float(test_mse),
+        'test_loss': float(test_loss),
         'config': config
     }
     
@@ -121,7 +124,7 @@ def main():
         # Print summary for selected experiments
         print("\nSummary of selected experiments:")
         for test_id, results in all_results.items():
-            print(f"{test_id}: MSE = {results['test_mse']}")
+            print(f"{test_id}: MSE = {results['test_loss']}")
         print_block_separator("Processing Complete", style='hash')
             
     else:
@@ -137,7 +140,7 @@ def main():
         # Print summary
         print("\nSummary of all experiments:")
         for test_id, results in all_results.items():
-            print(f"{test_id}: MSE = {results['test_mse']}")
+            print(f"{test_id}: MSE = {results['test_loss']}")
 
 if __name__ == "__main__":
     warnings.filterwarnings('ignore')

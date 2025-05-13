@@ -1,12 +1,12 @@
 {
     "test_id": "test_1",
     "description": "simplest model with 1 term",
-    "timestamp": "2024-11-25T11:01:18.706127",
-    "test_mse": 2.017316245833371e-05,
+    "timestamp": "2025-04-29T16:34:12.530135",
+    "test_loss": 0.0010857617838894466,
     "config": {
         "device": "cuda",
         "batch_size": 512,
-        "epochs": 50,
+        "epochs": 1,
         "model_dir": "models/sl_collider",
         "results_dir": "results/sl_collider",
         "description": "simplest model with 1 term",

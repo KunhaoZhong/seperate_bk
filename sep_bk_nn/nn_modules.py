@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 class MLP(nn.Module):
     def __init__(self, input_dim):
@@ -16,7 +17,7 @@ class MLP(nn.Module):
     
     def forward(self, x):
         return self.net(x)
-
+        
 class ResBlock(nn.Module):
     def __init__(self, dim, resblock_dim=None):
         super().__init__()
@@ -73,9 +74,10 @@ class ResMLP(nn.Module):
         return self.output_proj(x)
 
 class SeparableApproximation(nn.Module):
-    def __init__(self, num_terms=2, symm_kind=1, sub_arch='ResMLP'):
+    def __init__(self, num_terms=2, symm_kind=1, sub_arch='ResMLP', log_transform=False):
         super().__init__()
         self.num_terms = num_terms
+        self.log_transform = log_transform
         # SubModel = ResMLP(1, hidden_dim=64, num_blocks=1)
         if sub_arch=="MLP":
             self.alpha = nn.ModuleList([MLP(1) for _ in range(num_terms)])
@@ -89,35 +91,41 @@ class SeparableApproximation(nn.Module):
                 self.gamma = nn.ModuleList([ResMLP(1,hidden_dim=64, num_blocks=1)  for _ in range(num_terms)])
         else:
             raise ValueError('architecture of submodules not defined')
-        self.weights = nn.Parameter(torch.ones(num_terms))
+        self.weights = nn.Parameter(torch.ones(num_terms))#+1))
         self.symm_kind = symm_kind
 
     def forward(self, x):
+        if self.log_transform:
+            f = lambda x: torch.exp(x)
+            g = lambda x: torch.log(x)
+        else:
+            f = lambda x: x
+            g = lambda x: x
+        
+        # Define ks
+        k1, k2, k3 = g(x[:, 0]).view(-1, 1), g(x[:, 1]).view(-1, 1), g(x[:, 2]).view(-1, 1)
         
         # Symmtry kind 1: enforcing full symmetry, 3 different functions with 6 permutations
         if self.symm_kind==1:
-            k1, k2, k3 = x[:, 0].view(-1, 1), x[:, 1].view(-1, 1), x[:, 2].view(-1, 1)
-            result = sum( self.weights[i] * self.alpha[i](k1) * self.beta[i](k2) * self.gamma[i](k3)\
-                        +self.weights[i] * self.alpha[i](k1) * self.beta[i](k3) * self.gamma[i](k2)\
-                        +self.weights[i] * self.alpha[i](k2) * self.beta[i](k1) * self.gamma[i](k3)\
-                        +self.weights[i] * self.alpha[i](k2) * self.beta[i](k3) * self.gamma[i](k1)\
-                        +self.weights[i] * self.alpha[i](k3) * self.beta[i](k1) * self.gamma[i](k2)\
-                        +self.weights[i] * self.alpha[i](k3) * self.beta[i](k2) * self.gamma[i](k1)\
+            result = sum(self.weights[i] * f(self.alpha[i](k1)) * f(self.beta[i](k2)) * f(self.gamma[i](k3))\
+                        +self.weights[i] * f(self.alpha[i](k1)) * f(self.beta[i](k3)) * f(self.gamma[i](k2))\
+                        +self.weights[i] * f(self.alpha[i](k2)) * f(self.beta[i](k1)) * f(self.gamma[i](k3))\
+                        +self.weights[i] * f(self.alpha[i](k2)) * f(self.beta[i](k3)) * f(self.gamma[i](k1))\
+                        +self.weights[i] * f(self.alpha[i](k3)) * f(self.beta[i](k1)) * f(self.gamma[i](k2))\
+                        +self.weights[i] * f(self.alpha[i](k3)) * f(self.beta[i](k2)) * f(self.gamma[i](k1))\
                               for i in range(self.num_terms))
             return result
         
-        # Symmtry kind 2: assuming addtional symmetry, 2 functions alpha and beta, with 3 permutations
+        # Symmtry kind 2: assuming additional symmetry, 2 functions alpha and beta, with 3 permutations
         elif self.symm_kind==2:
-            k1, k2, k3 = x[:, 0].view(-1, 1), x[:, 1].view(-1, 1), x[:, 2].view(-1, 1)
-            result = sum( self.weights[i] * self.alpha[i](k1) * self.beta[i](k2) * self.beta[i](k3)\
-                        +self.weights[i] * self.alpha[i](k2) * self.beta[i](k1) * self.beta[i](k3)\
-                        +self.weights[i] * self.alpha[i](k3) * self.beta[i](k2) * self.beta[i](k1) for i in range(self.num_terms))
+            result = sum( self.weights[i] * f(self.alpha[i](k1)) * f(self.beta[i](k2)) * f(self.beta[i](k3))\
+                        +self.weights[i] * f(self.alpha[i](k2)) * f(self.beta[i](k3)) * f(self.beta[i](k1))\
+                        +self.weights[i] * f(self.alpha[i](k3)) * f(self.beta[i](k1)) * f(self.beta[i](k2)) for i in range(self.num_terms))
             return result
         
         # Symmtry kind 3: assuming addtional symmetry, but 3 function used
         elif self.symm_kind==3:
-            k1, k2, k3 = x[:, 0].view(-1, 1), x[:, 1].view(-1, 1), x[:, 2].view(-1, 1)
-            result = sum( self.weights[i] * self.alpha[i](k1) * self.beta[i](k2) * self.gamma[i](k3)\
-                        +self.weights[i] * self.alpha[i](k2) * self.beta[i](k3) * self.gamma[i](k1)\
-                        +self.weights[i] * self.alpha[i](k3) * self.beta[i](k1) * self.gamma[i](k2) for i in range(self.num_terms))
+            result = sum( self.weights[i] * f(self.alpha[i](k1)) * f(self.beta[i](k2)) * f(self.gamma[i](k3))\
+                        +self.weights[i] * f(self.alpha[i](k2)) * f(self.beta[i](k3)) * f(self.gamma[i](k1))\
+                        +self.weights[i] * f(self.alpha[i](k3)) * f(self.beta[i](k1)) * f(self.gamma[i](k2)) for i in range(self.num_terms))
             return result

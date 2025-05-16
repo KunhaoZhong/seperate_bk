@@ -81,8 +81,8 @@ class SepBKNN:
         """Compute the inner-product loss"""
         k_weight = X[:,0]*X[:,1]*X[:,2]/(X[:,0]+X[:,1]+X[:,2])
         k_weight *= 0.5*(1-torch.tanh(10*torch.log10(X[:,0]/0.13)))
-        k_weight *= 0.5*(1-torch.tanh(10*torch.log10(X[:,0]/0.13)))
-        k_weight *= 0.5*(1-torch.tanh(10*torch.log10(X[:,0]/0.13)))
+        k_weight *= 0.5*(1-torch.tanh(10*torch.log10(X[:,1]/0.13)))
+        k_weight *= 0.5*(1-torch.tanh(10*torch.log10(X[:,2]/0.13)))
         return torch.sum(k_weight*(predicted_y - true_y)**2)/len(predicted_y)
         
     def train(self, train_loader, val_loader, epochs, checkpoint_dir, patience=5):
